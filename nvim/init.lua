@@ -166,7 +166,21 @@ vim.keymap.set("n", "[d", vim.diagnostic.goto_prev, { desc = "Go to previous [D]
 vim.keymap.set("n", "]d", vim.diagnostic.goto_next, { desc = "Go to next [D]iagnostic message" })
 vim.keymap.set("n", "<leader>e", vim.diagnostic.open_float, { desc = "Show diagnostic [E]rror messages" })
 vim.keymap.set("n", "<leader>q", vim.diagnostic.setloclist, { desc = "Open diagnostic [Q]uickfix list" })
-vim.keymap.set("n", "<leader>e", ":Neotree<CR>", { desc = "Open diagnostic [Q]uickfix list" })
+
+-- Neotree custom keymaps by keko
+-- function for toggling
+local function toggle_neotree()
+  local buf = vim.api.nvim_get_current_buf()
+  local buf_type = vim.api.nvim_buf_get_option(buf, "filetype")
+  print("Current bufftype .. " .. buf_type)
+  if buf_type == "neo-tree" then
+    vim.cmd("Neotree close")
+  else
+    vim.cmd("Neotree")
+  end
+end
+
+vim.keymap.set("n", "<leader>E", toggle_neotree, { desc = "Open neo tree", noremap = true, silent = true })
 
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
@@ -352,16 +366,105 @@ require("lazy").setup({
 
       -- [[ Configure Telescope ]]
       -- See `:help telescope` and `:help telescope.setup()`
+      -- function to open in a new tav using fuzzy finding
+      local builtin = require("telescope.builtin")
+      -- Custom function to open selected file in a new tab
+      local function open_file_in_new_tab(prompt_bufnr)
+        -- Get the currently selected entry
+        local actions = require("telescope.actions")
+        local action_state = require("telescope.actions.state")
+        local entry = action_state.get_selected_entry()
+
+        -- If no entry is selected, do nothing
+        if not entry then
+          vim.notify("No file selected", vim.log.levels.WARN)
+          return
+        end
+
+        -- Close the Telescope prompt before opening the file
+        actions.close(prompt_bufnr)
+
+        -- Get the filename from the entry
+        local filename = entry.value
+
+        -- Open the file in a new tab
+        vim.cmd("tabnew " .. filename)
+      end
+
+      -- Telescope setup to attach custom function to find_files
+      local function find_files_open_in_tab()
+        builtin.find_files({
+          attach_mappings = function(prompt_bufnr, map)
+            -- Map <CR> to our custom function in both insert and normal mode
+            map("i", "<CR>", open_file_in_new_tab)
+            map("n", "<CR>", open_file_in_new_tab)
+            return true
+          end,
+        })
+      end
+
+      -- It might help to explicitly require the modules inside the function if there's an issue with loading order or scoping.
+      local function open_file_in_horizontal_split(prompt_bufnr)
+        -- Require action_state locally within the function to ensure it's loaded correctly
+        local action_state = require("telescope.actions.state")
+        local actions = require("telescope.actions")
+
+        local entry = action_state.get_selected_entry()
+        if not entry then
+          vim.notify("No file selected", vim.log.levels.WARN)
+          return
+        end
+        actions.close(prompt_bufnr)
+        local filename = entry.value
+        vim.cmd("split " .. filename)
+      end
+
+      -- Custom function to open selected file in a vertical split
+      local function open_file_in_vertical_split(prompt_bufnr)
+        local actions = require("telescope.actions")
+        local actions_state = require("telescope.actions.state")
+        local entry = actions_state.get_selected_entry()
+        if not entry then
+          vim.notify("No file selected", vim.log.levels.WARN)
+          return
+        end
+        actions.close(prompt_bufnr)
+        local filename = entry.value
+        vim.cmd("vsplit " .. filename)
+      end
+
+      -- Telescope setup to attach custom functions to find_files
+      local function find_files_open_in_horizontal_split()
+        builtin.find_files({
+          attach_mappings = function(prompt_bufnr, map)
+            map("i", "<CR>", open_file_in_horizontal_split)
+            map("n", "<CR>", open_file_in_horizontal_split)
+            return true
+          end,
+        })
+      end
+
+      local function find_files_open_in_vertical_split()
+        builtin.find_files({
+          attach_mappings = function(prompt_bufnr, map)
+            map("i", "<CR>", open_file_in_vertical_split)
+            map("n", "<CR>", open_file_in_vertical_split)
+            return true
+          end,
+        })
+      end
+
       require("telescope").setup({
         -- You can put your default mappings / updates / etc. in here
         --  All the info you're looking for is in `:help telescope.setup()`
         --
-        -- defaults = {
-        --   mappings = {
-        --     i = { ['<c-enter>'] = 'to_fuzzy_refine' },
-        --   },
-        -- },
-        -- pickers = {}
+        defaults = {
+          mappings = {
+            i = { ["<C-t>"] = open_in_new_tab },
+            n = { ["<C-t>"] = open_in_new_tab },
+          },
+        },
+        --        pickers = {},
         extensions = {
           ["ui-select"] = {
             require("telescope.themes").get_dropdown(),
@@ -373,11 +476,24 @@ require("lazy").setup({
       pcall(require("telescope").load_extension, "fzf")
       pcall(require("telescope").load_extension, "ui-select")
 
+      -- Setting up key mappings for horizontal and vertical splits
+      vim.keymap.set(
+        "n",
+        "<leader>fhs",
+        find_files_open_in_horizontal_split,
+        { noremap = true, silent = true, desc = "Find files and open in horizontal split" }
+      )
+      vim.keymap.set(
+        "n",
+        "<leader>P",
+        find_files_open_in_vertical_split,
+        { noremap = true, silent = true, desc = "Find files and open in vertical split" }
+      )
+
       -- See `:help telescope.builtin`
-      local builtin = require("telescope.builtin")
       vim.keymap.set("n", "<leader>sh", builtin.help_tags, { desc = "[S]earch [H]elp" })
       vim.keymap.set("n", "<leader>sk", builtin.keymaps, { desc = "[S]earch [K]eymaps" })
-      vim.keymap.set("n", "<leader>ff", builtin.find_files, { desc = "[S]earch [F]iles" })
+      vim.keymap.set("n", "<leader>p", find_files_open_in_tab, { desc = "[S]earch [F]iles" })
       vim.keymap.set("n", "<leader>ss", builtin.builtin, { desc = "[S]earch [S]elect Telescope" })
       vim.keymap.set("n", "<leader>sw", builtin.grep_string, { desc = "[S]earch current [W]ord" })
       vim.keymap.set("n", "<leader>sg", builtin.live_grep, { desc = "[S]earch by [G]rep" })
@@ -722,7 +838,7 @@ require("lazy").setup({
         -- No, but seriously. Please read `:help ins-completion`, it is really good!
         mapping = cmp.mapping.preset.insert({
           -- Select the [n]ext item
-          ["<C-n>"] = cmp.mapping.select_next_item(),
+          ["<Tab>"] = cmp.mapping.select_next_item(),
           -- Select the [p]revious item
           ["<C-p>"] = cmp.mapping.select_prev_item(),
 
@@ -733,7 +849,7 @@ require("lazy").setup({
           -- Accept ([y]es) the completion.
           --  This will auto-import if your LSP supports it.
           --  This will expand snippets if the LSP sent a snippet.
-          ["<C-y>"] = cmp.mapping.confirm({ select = true }),
+          ["<Enter>"] = cmp.mapping.confirm({ select = true }),
 
           -- If you prefer more traditional completion keymaps,
           -- you can uncomment the following lines
@@ -917,5 +1033,19 @@ require("lazy").setup({
   },
 })
 
+-- custom code to move between windows using <leader> arrows
+vim.keymap.set("n", "<leader><Left>", "<C-w><Left>", { desc = "Move to left window" })
+vim.keymap.set("n", "<leader><Right>", "<C-w><Right>", { desc = "Move to right window" })
+-- Move to specific tabs using <leader> followed by the tab number
+vim.keymap.set("n", "<leader>1", "1gt", { desc = "Move to the first tab" })
+vim.keymap.set("n", "<leader>2", "2gt", { desc = "Move to the second tab" })
+vim.keymap.set("n", "<leader>3", "3gt", { desc = "Move to the third tab" })
+vim.keymap.set("n", "<leader>4", "4gt", { desc = "Move to the fourth tab" })
+vim.keymap.set("n", "<leader>5", "5gt", { desc = "Move to the fifth tab" })
+vim.keymap.set("n", "<leader>6", "6gt", { desc = "Move to the sixth tab" })
+vim.keymap.set("n", "<leader>7", "7gt", { desc = "Move to the seventh tab" })
+vim.keymap.set("n", "<leader>8", "8gt", { desc = "Move to the eighth tab" })
+vim.keymap.set("n", "<leader>9", "9gt", { desc = "Move to the ninth tab" })
+vim.keymap.set("n", "<leader>0", ":tablast<CR>", { desc = "Move to the last tab" })
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
