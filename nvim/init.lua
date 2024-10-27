@@ -689,6 +689,7 @@ require("lazy").setup({
         -- pyright = {},
         -- rust_analyzer = {},
         require("lspconfig").rust_analyzer.setup({}),
+        require("lspconfig").astro.setup({}),
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
         -- Some languages (like typescript) have entire language plugins that can be useful:
@@ -781,7 +782,6 @@ require("lazy").setup({
       },
     },
   },
-
   { -- Autocompletion
     "hrsh7th/nvim-cmp",
     event = "InsertEnter",
@@ -904,7 +904,7 @@ require("lazy").setup({
       -- Load the colorscheme here.
       -- Like many other themes, this one has different styles, and you could load
       -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-      vim.cmd.colorscheme("gruvbox")
+      vim.cmd.colorscheme("habamax")
 
       -- You can configure highlights by doing something like:
       vim.cmd.hi("Comment gui=none")
@@ -998,10 +998,11 @@ require("lazy").setup({
   --  Here are some example plugins that I've included in the Kickstart repository.
   --  Uncomment any of the lines below to enable them (you will need to restart nvim).
   --
+  --
   -- require 'kickstart.plugins.debug',
-  -- require 'kickstart.plugins.indent_line',
-  -- require 'kickstart.plugins.lint',
-  -- require 'kickstart.plugins.autopairs',
+  -- require("kickstart.plugins.indent_line"),
+  require("kickstart.plugins.lint"),
+  require("kickstart.plugins.autopairs"),
   require("kickstart.plugins.neo-tree"),
   -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
 
